@@ -1,3 +1,8 @@
+import sys
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.abspath(relative_path)
 import tkinter as tk
 from PIL import Image, ImageTk, ImageSequence
 import threading
@@ -10,7 +15,7 @@ class SplashScreen(tk.Toplevel):
         self.overrideredirect(True)
         self.configure(bg='white')
         self.duration = duration
-        self.gif_path = gif_path
+        self.gif_path = resource_path(gif_path)
         self.sound_path = sound_path
         self.frames = []
         self.frame_index = 0
