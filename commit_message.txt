@@ -1,0 +1,1 @@
+Splash screen: animated gif now properly stretched, slowed down, fade-in/out, and main window centered. Ready for packaging.
