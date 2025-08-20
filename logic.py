@@ -19,8 +19,49 @@ def normalize_key(s):
     s = re.sub(r'[\u200b\u200c\u200d\ufeff]', '', s)
     return s
 
+
+# --- smart_number: умная обработка числового столбца ---
+import numpy as np
+from datetime import datetime
+def smart_number(val):
+    if pd.isnull(val):
+        return 0.0
+    # Если это число
+    if isinstance(val, (int, float, np.integer, np.floating)):
+        return float(val)
+    s = str(val).strip().replace(',', '.').replace(' ', '')
+    # Если дата Excel (число дней с 1899-12-30)
+    try:
+        if s.isdigit() and 35000 < int(s) < 50000:
+            # Excel date
+            dt = datetime(1899, 12, 30) + pd.to_timedelta(int(s), unit='D')
+            return float(dt.day)
+    except Exception:
+        pass
+    # Если просто число
+    try:
+        return float(s)
+    except Exception:
+        pass
+    # Если строка содержит буквы или "икс" (x, X, х, Х)
+    if re.search(r'[a-zA-Zа-яА-ЯёЁxхXХ]', s):
+        return 0.0
+    return 0.0
+
+
+import hashlib
+
+def content_hash(df):
+    # Хэшируем только нормализованные ключи и количество
+    if not {'Марка_norm', 'Наименование_norm', 'Количество'}.issubset(df.columns):
+        return None
+    arr = df[['Марка_norm', 'Наименование_norm', 'Количество']].sort_values(['Марка_norm', 'Наименование_norm']).to_string(index=False)
+    return hashlib.md5(arr.encode('utf-8')).hexdigest()
+
+
 def clean_and_aggregate(xl):
     floors = {}
+    hashes = {}
     for sheet in xl.sheet_names:
         floor = extract_floor_from_sheet(sheet)
         if floor is None:
@@ -52,15 +93,21 @@ def clean_and_aggregate(xl):
             cols = list(df.columns)[:3]
             df = df[cols].copy()
             df.columns = ['Марка', 'Наименование', 'Количество']
-        # Привести количество к числу
-        df['Количество'] = pd.to_numeric(df['Количество'], errors='coerce').fillna(0)
+        # --- Используем smart_number для обработки столбца 'Количество' ---
+        df['Количество'] = df['Количество'].apply(smart_number)
         # Нормализовать ключи
         df['Марка_norm'] = df['Марка'].apply(normalize_key)
         df['Наименование_norm'] = df['Наименование'].apply(normalize_key)
         df = df.groupby(['Марка_norm', 'Наименование_norm'], as_index=False).agg({'Марка':'first', 'Наименование':'first', 'Количество':'sum'})
+        # --- Поиск дублей по содержимому ---
+        h = content_hash(df)
         if floor not in floors:
             floors[floor] = []
-        floors[floor].append(df)
+            hashes[floor] = set()
+        if h and h not in hashes[floor]:
+            floors[floor].append(df)
+            hashes[floor].add(h)
+        # Если дубликат — не добавляем
     # Объединить по этажам
     for floor in floors:
         floors[floor] = pd.concat(floors[floor], ignore_index=True).groupby(['Марка_norm', 'Наименование_norm'], as_index=False).agg({'Марка':'first', 'Наименование':'first', 'Количество':'sum'})

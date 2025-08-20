@@ -60,12 +60,6 @@ class SplashScreen(tk.Toplevel):
             # 0.25x скорости: задержка 240 мс на кадр (обычно 60 мс)
             self._after_id = self.after(240, self.play_gif)
 
-    def play_sound(self):
-        try:
-            from playsound import playsound
-            playsound(self.sound_path)
-        except Exception:
-            pass
 
     def fade_out(self):
         # Остановить анимацию гифки
