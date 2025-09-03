@@ -5,6 +5,12 @@ def extract_floor_from_sheet(sheet_name):
     name = str(sheet_name).strip()
     if re.match(r'^00(\D|$)', name):
         return '00'
+    if re.match(r'^-?1(\D|$)', name):
+        # -1 или 1 этаж (подвал или первый этаж)
+        if name.startswith('-1'):
+            return '-1'  # подвал
+        else:
+            return '1'   # обычный этаж
     if re.match(r'^0(\D|$)', name):
         return '0'
     m = re.match(r'^(\d+)', name)
@@ -123,8 +129,8 @@ def build_final_table_multi(floors, multipliers):
         for _, row in df0.iterrows():
             all_keys.add((row['Марка_norm'], row['Наименование_norm']))
     all_keys = sorted(all_keys)
-    floor_nums = sorted([f for f in floors if not (str(f).startswith('0') and str(f) != '0') and str(f) != '0'], key=lambda x: (len(str(x)), str(x)))
-    podval_nums = [f for f in floors if str(f).startswith('0') and str(f) != '0']
+    floor_nums = sorted([f for f in floors if not (str(f).startswith('0') and str(f) != '0') and str(f) != '0' and f != '-1'], key=lambda x: (len(str(x)), str(x)))
+    podval_nums = [f for f in floors if (str(f).startswith('0') and str(f) != '0') or str(f) == '-1']
     print('DEBUG: multipliers:', multipliers)
     print('DEBUG: floor_nums:', floor_nums)
     print('DEBUG: podval_nums:', podval_nums)
